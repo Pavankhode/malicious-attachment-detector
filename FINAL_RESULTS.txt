@@ -1,0 +1,31 @@
+MALICIOUS ATTACHMENT DETECTOR - FINAL TEST RESULTS
+
+1. Normal Text File
+File: normal.txt
+Result: SAFE
+Risk Score: 0/100
+Risk Level: LOW
+
+2. Fake PDF / Extension Mismatch
+File: notes.pdf
+Result: SUSPICIOUS
+Risk Score: 40/100
+Risk Level: MEDIUM
+
+3. Suspicious EXE Extension
+File: test.exe
+Result: POTENTIALLY DANGEROUS
+Risk Score: 70/100
+Risk Level: HIGH
+
+4. ZIP Archive
+File: test_archive.zip
+Result: SUSPICIOUS FILES DETECTED
+Risk Score: 40/100
+Risk Level: MEDIUM
+
+5. Valid PDF
+File: real.pdf
+Result: SAFE
+Risk Score: 0/100
+Risk Level: LOW

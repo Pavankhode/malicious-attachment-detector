@@ -1,0 +1,191 @@
+import os
+import hashlib
+import zipfile
+
+
+print("================================")
+print("   MALICIOUS ATTACHMENT DETECTOR")
+print("================================")
+
+file_path = input("Enter file path to scan: ")
+
+if os.path.isfile(file_path):
+
+    # Basic file information
+    file_size = os.path.getsize(file_path)
+    file_extension = os.path.splitext(file_path)[1].lower()
+
+    print("\nFile found: YES")
+    print("File size:", file_size, "bytes")
+    print("File Type:", file_extension)
+
+    # Calculate SHA-256 hash
+    sha256_hash = hashlib.sha256()
+
+    with open(file_path, "rb") as file:
+        for block in iter(lambda: file.read(4096), b""):
+            sha256_hash.update(block)
+
+    file_hash = sha256_hash.hexdigest()
+
+    print("SHA-256:", file_hash)
+
+    # Read file signature
+    with open(file_path, "rb") as file:
+        file_header = file.read(8)
+
+    # Detect actual file signature
+    actual_type = "Unknown"
+
+    if file_header.startswith(b"MZ"):
+        actual_type = "Windows Executable"
+
+    elif file_header.startswith(b"%PDF"):
+        actual_type = "PDF Document"
+
+    elif file_header.startswith(b"PK"):
+        actual_type = "ZIP/Office Archive"
+
+    elif file_header.startswith(b"\x89PNG"):
+        actual_type = "PNG Image"
+
+    elif file_header.startswith(b"\xff\xd8\xff"):
+        actual_type = "JPEG Image"
+
+    elif file_header.startswith(b"GIF8"):
+        actual_type = "GIF Image"
+
+    print("Actual File Signature:", actual_type)
+
+    # Suspicious extensions
+    suspicious_extensions = [
+        ".exe",
+        ".dll",
+        ".vbs",
+        ".vbe",
+        ".bat",
+        ".cmd",
+        ".js",
+        ".ps1"
+    ]
+
+    # Risk score
+    risk_score = 0
+
+    # Check outer file extension
+    if file_extension in suspicious_extensions:
+        risk_score += 30
+
+    # Check actual executable signature
+    if actual_type == "Windows Executable":
+        risk_score += 40
+
+    # Check extension mismatch
+    if file_extension == ".pdf" and actual_type == "Windows Executable":
+        risk_score += 30
+
+    if file_extension in [".jpg", ".jpeg", ".png", ".gif"]:
+        if actual_type == "Windows Executable":
+            risk_score += 30
+
+    # ZIP archive inspection
+    if file_extension == ".zip" or actual_type == "ZIP/Office Archive":
+
+        print("\nZIP/Archive Analysis:")
+
+        try:
+            with zipfile.ZipFile(file_path, "r") as archive:
+
+                file_list = archive.namelist()
+
+                print("Files inside archive:", len(file_list))
+
+                suspicious_inside = []
+
+                for name in file_list:
+
+                    # Skip directories
+                    if name.endswith("/"):
+                        print(" -", name, "(directory)")
+                        continue
+
+                    print(" -", name)
+
+                    inner_extension = os.path.splitext(name)[1].lower()
+
+                    # Read a small part of the file without extracting it
+                    try:
+                        with archive.open(name) as inner_file:
+                            inner_header = inner_file.read(8)
+                    except Exception:
+                        inner_header = b""
+
+                    inner_type = "Unknown"
+
+                    if inner_header.startswith(b"MZ"):
+                        inner_type = "Windows Executable"
+
+                    elif inner_header.startswith(b"%PDF"):
+                        inner_type = "PDF Document"
+
+                    elif inner_header.startswith(b"\x89PNG"):
+                        inner_type = "PNG Image"
+
+                    elif inner_header.startswith(b"\xff\xd8\xff"):
+                        inner_type = "JPEG Image"
+
+                    elif inner_header.startswith(b"GIF8"):
+                        inner_type = "GIF Image"
+
+                    elif inner_header.startswith(b"PK"):
+                        inner_type = "ZIP/Office Archive"
+
+                    print("   File Type:", inner_extension)
+                    print("   Actual Signature:", inner_type)
+
+                    # Suspicious extension inside archive
+                    if inner_extension in suspicious_extensions:
+                        suspicious_inside.append(name)
+
+                    # Executable disguised as another file
+                    if inner_type == "Windows Executable":
+                        if inner_extension not in [".exe", ".dll"]:
+                            print("   WARNING: File type does not match its content!")
+                            risk_score += 30
+
+                # Report suspicious extensions
+                if suspicious_inside:
+                    print("\nWARNING: Suspicious file found inside archive!")
+
+                    for name in suspicious_inside:
+                        print("Suspicious:", name)
+
+                    risk_score += 40
+
+                else:
+                    print("\nNo suspicious executable/script files found inside archive.")
+
+        except zipfile.BadZipFile:
+            print("Archive analysis failed: Invalid ZIP file.")
+
+    # Limit score to 100
+    if risk_score > 100:
+        risk_score = 100
+
+    print("\nRisk Score:", risk_score, "/100")
+
+    if risk_score >= 70:
+        print("Risk Level: HIGH")
+        print("WARNING: Potentially dangerous file detected!")
+
+    elif risk_score >= 40:
+        print("Risk Level: MEDIUM")
+        print("CAUTION: Suspicious file detected.")
+
+    else:
+        print("Risk Level: LOW")
+        print("No major suspicious indicators detected.")
+
+else:
+    print("\nFile found: NO")
+    print("Please enter a valid file path.")
